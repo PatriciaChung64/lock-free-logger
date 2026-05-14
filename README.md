@@ -7,6 +7,7 @@ Requires C++ 17 or later.
 
 ## SPSC Queue
 
+
 ## MPSC Manager
 The manager keeps an array of worker threads, all pushing to their own SPSC queue.
 The manager goes through each thread in a round robin style to dequeue from each SPSC queue.
@@ -16,10 +17,11 @@ For now, the manager then saves the dequeued items in its own container.
 The manager should store each thread as a struct of this shape:
 `struct WorkerThread{
     std::thread worker_thread;
-    SPSCQueue<T> queue;
+    SPSCQueue<LogEntry> queue;
     std::atomic<bool> running; // the variable that controls when the worker thread stops
     std::atomic<size_t> totalEnqueued;
     std::atomic<size_t> totalDequeued;
+    std::atomic<size_t> droppedByProducer;
 }`
 
 In particular, the queue, the atomic variable totalEnqueued, and the boolean running is constantly written to or accessed by the worker thread, so we want to ensure that these stay on the same cache line for **cache locality**.
@@ -62,9 +64,10 @@ What methods should manager have?
 
 Therefore, the class variables for the manager should be:
 - std::array<WorkerThread, N> threads - array that stores all the threads, number of threads spawned should be given.
-- std::array<T> manager_queue - the manager's queue which stores all the items dequeued from threads.
+- std::array<LogEntry> manager_queue - the manager's queue which stores all the items dequeued from threads.
 - size_t head - keeps track of the next item to read on the manager's queue
 - size_t tail - keeps track of the next memory block to enqueue a new item on the manager's queue
+- size_t droppedByManager - counter that keeps track of dropped items due to full manager queue.
 
 ---
 
@@ -77,3 +80,65 @@ However, since this is a proof of concept project, the sizes of the manager's an
 
 ### Optimisation trade-off
 In theory, the manager's ring buffer queue logic is exactly the same as the SPSCQueue. However, because the SPSCQueue's atomic operations are computationally expensive by imposing memory barriers to avoid instruction reordering and to avoid race conditions in a lock-free design, they are too heavy for the single-threaded manager's use case. To honor the principles of **mechanical sympathy**, we have implmented a lightweight version of this logic for the manager's internal queue to optimise for low-latency.
+
+---
+
+### Dropping items on full
+Currently, both the SPSCQueue and MPSCManager's internal aggregated queue **drops enqueued items when the queues are full.** This is a deliberate design decision to ensure **no blocking** happens as it is counterintuitive for threads to block for logging instead of returning to their critical path work. 
+
+If we want items to not be dropped, we have several possible solutions, and both also contradict the design philosophy of the design:
+
+- **Allow overwriting the oldest unread item in the queue to enqueue newest item**: This actually does not solve the problem of dropped updates at all, as you are now dropping old updates instead. If this is a system where newest data should encapsulate old information as well (e.g. stock market trends, machine health monitoring images), then overwriting would make sense. In a logging system, however, every entry has **diagnostic value** and the **integrity of the complete sequence** matters. Overwriting old entries silently removes evidence that may be needed to reconstruct the sequence of events leading to a fault. A dropped new entry is at least a known unknown — you can see the gap in timestamps. An overwritten old entry is an unknown unknown — the log appears complete but is missing data with no indication of the loss.
+
+- **Resizing the queues**: The rationale for the fixed-size ring-buffer design of the current project is to avoid the **memory management jitter** from **heap allocation**. Therefore, allowing for resizing would reintroduce heap allocation, and potentially cause **pointer invalidation** if the queue are storing pointers to objects, and gets moved to a new section of the heap after resizing.
+
+- **Having a temporary back-up store**: Basically just trying to band-aid the problem by adding more **memory management jitter**. Not sustainable and introduces extreme management overhead of having to check two queues instead of one per thread.
+
+- **Increasing the initial size of the queues**: One of the most feasible solutions. Though the calculation on how much to increase requires knowing how many items are actually dropped, in order to know the current limits of the system accurately. This bridges to the next section on monitoring dropped items.
+
+---
+
+### Monitoring dropped items
+
+While it is concluded that dropping items when queues are full is a deliberate design decision based on the principles of the current project, monitoring the number of dropped items could provide important insight for adjusting the initial size of the queues to eliminate chances of dropped items based on the system's maximum load.
+
+The solution is an internal counter at the manager level for its aggregated queue (`droppedManager`), and an individual items dropped counter for each thread monitored by the WorkerThread, such that along with `totalEnqueued` and `totalDequeued`, `droppedByProducer` exposes **queue performance metrics** and is captured by a dedicated worker thread wrapper that resembles an **observer pattern**. 
+
+This design decision of a queue perforamnce metrics wrapper keeps the logic of the SPSCQueue encapsulated, and allows for future **scalability** for more relevant performance metrics monitoring while keeping logic of the SPSCQueue lean.
+
+---
+
+### Testing the MPSC Manager
+
+In order the test the MPSCManager there is a major constraint we must first address in terms of how the thread worker's work cycle is initialised:
+```C++
+    [this]() {
+        int i = 0;
+        State current_state;
+        do {
+            current_state = state.load(std::memory_order_acquire);
+            if (current_state == State::Idle) {
+                std::this_thread::yield();
+            }
+            else if (current_state == State::Running) {
+                if (queue.enqueue(LogEntry{threadID, i})) {
+                    totalEnqueued.fetch_add(1, std::memory_order_relaxed);
+                    i++;
+                }
+                else {
+                    droppedByProducer.fetch_add(1, std::memory_order_relaxed);
+                }
+            }
+        } while (current_state == State::Idle || current_state == State::Running);
+    }
+```
+This current work cycle while in the running state simply continues keeps enqueuing items forever (if queue is fulled, the enqueue is dropped, but the loop tries to enqueue the log with the same value until it succeeds).
+
+What this means is that when testing, **we cannot control the amount of data generated by the queue.** This is a massive constraint as the idea of blackbox testing is to insert bounded input and match the output of the system to expectations. As such, we need to refactor this code to **introduce a target number of items input** that we can reasonably verify (e.g. if you just let the thread run for 100ms currently, it enqueues ~400 items on my local machine, making debugging very unstable and complex for little reason).
+
+The intuition is therefore to introduce a debug toggle to the lambda, such that if debugg mode is on, the thread will only enqueue the specified number of items, and then remain idle until terminated. This can be solved by **passing a `std::optional<int>` to the lambda**, where **std::nullopt means just enqueue as many items as possible (the current logic)**, and **an int indicates how many items to enqueue** before the work is finished.
+
+The implementation is therefore to pass in a 
+
+
+

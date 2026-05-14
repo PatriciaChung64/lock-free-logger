@@ -1,9 +1,9 @@
+#pragma once //only compile once if included in multiple files
+
 #include <array>
 #include <optional>
 #include <atomic>
 #include <new>
-
-#pragma once //only compile once if included in multiple files
 
 template <typename T, std::size_t N>
 class SPSCQueue {
