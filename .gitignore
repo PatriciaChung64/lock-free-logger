@@ -1,0 +1,16 @@
+# Compiled output
+*.exe
+*.obj
+*.o
+*.out
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Build directories
+build/
+out/
