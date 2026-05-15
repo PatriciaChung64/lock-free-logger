@@ -7,6 +7,11 @@
 #include "LogEntry.h"
 #include "WorkerThread.h"
 
+template <std::size_t... Is>
+static auto make_workers(std::optional<int> val, std::index_sequence<Is...>) {
+    return std::array<WorkerThread, sizeof...(Is)>{ ((void)Is, WorkerThread(val))... };
+}
+
 template <size_t N, size_t M = 100>
 class MPSCManager {
     private:
@@ -17,7 +22,11 @@ class MPSCManager {
         size_t droppedByManager;
 
     public:
-        MPSCManager() : manager_queue{}, head(0), tail(0), threads{} {}
+        MPSCManager(std::optional<int> target) : manager_queue{}, head(0), tail(0), threads(make_workers(target, std::make_index_sequence<N>{})) {}
+
+        const std::array<WorkerThread, N>& get_threads() const {
+            return threads;
+        }
 
         bool enqueue(LogEntry& val) {
             if ((tail+1) % M == head) {

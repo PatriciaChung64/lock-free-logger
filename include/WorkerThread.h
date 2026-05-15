@@ -35,7 +35,7 @@ struct WorkerThread
     // only touch when starting/stopping thread
     std::thread thread;
 
-    WorkerThread() : thread([this]() {
+    WorkerThread(std::optional<int> target) : thread([this, target]() {
         int i = 0;
         State current_state;
         do {
@@ -44,12 +44,14 @@ struct WorkerThread
                 std::this_thread::yield();
             }
             else if (current_state == State::Running) {
-                if (queue.enqueue(LogEntry{threadID, i})) {
-                    totalEnqueued.fetch_add(1, std::memory_order_relaxed);
-                    i++;
-                }
-                else {
-                    droppedByProducer.fetch_add(1, std::memory_order_relaxed);
+                if (!target || totalEnqueued.load(std::memory_order_relaxed) < *target) {
+                    if (queue.enqueue(LogEntry{threadID, i})) {
+                        totalEnqueued.fetch_add(1, std::memory_order_relaxed);
+                        i++;
+                    }
+                    else {
+                        droppedByProducer.fetch_add(1, std::memory_order_relaxed);
+                    }
                 }
             }
         } while (current_state == State::Idle || current_state == State::Running);

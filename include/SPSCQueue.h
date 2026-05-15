@@ -1,4 +1,4 @@
-#pragma once //only compile once if included in multiple files
+#pragma once
 
 #include <array>
 #include <optional>
