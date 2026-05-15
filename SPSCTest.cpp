@@ -3,7 +3,7 @@
 #include <thread>
 #include <cassert>
 
-void SPSCTest() {
+int main() {
     SPSCQueue<int, 5> queue; // 4 usable slots
     std::atomic<bool> running{ true };
     std::atomic<int> lastDequeued{ -1 };
@@ -43,4 +43,6 @@ void SPSCTest() {
     std::cout << "Remaining in queue: "
         << totalEnqueued.load() - totalDequeued.load() << "\n";
     std::cout << "All assertions passed, queue is correct\n";
+
+    return 0;
 }
