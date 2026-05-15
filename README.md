@@ -158,6 +158,7 @@ The template here gives a type name `Is...` for the `std::index_sequence<N>` we 
 
 ---
 
+### MPSCManager correctness test
 1. Construct MPSCManager with 3 threads, target of 10 items each
 2. start_all()
 3. Poll dequeue_thread() in a loop until all threads have hit their target
