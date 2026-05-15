@@ -1,9 +1,17 @@
 ## Building
 Requires C++ 17 or later.
+
+To run the SPSCTest (change the method name from SPSCTest() to main() in SPSCTest.cpp):
 ### Windows (Developer Powershell)
 `cl /std:c++17 /EHsc SPSCTest.cpp /I include`
 ### Linux/Mac
 `g++ -std=c++17 -o spsc_test SPSCTest.cpp -I include`
+
+To run the MPSCTest:
+### Windows (Developer Powershell)
+`cl /std:c++17 /EHsc MPSCTest.cpp /I include`
+### Linux/Mac
+`g++ -std=c++17 -o spsc_test MPSCTest.cpp -I include`
 
 ## SPSC Queue
 
