@@ -45,7 +45,9 @@ struct WorkerThread
             }
             else if (current_state == State::Running) {
                 if (!target || totalEnqueued.load(std::memory_order_relaxed) < *target) {
-                    if (queue.enqueue(threadID, i)) {
+                    char buf[LogEntry::MESSAGE_SIZE];
+                    snprintf(buf, LogEntry::MESSAGE_SIZE, "Thread %d, Item %d", threadID, i);
+                    if (queue.enqueue(threadID, buf)) {
                         totalEnqueued.fetch_add(1, std::memory_order_relaxed);
                         i++;
                     }

@@ -20,6 +20,10 @@ protected:
 		tail.store((current_tail + 1), std::memory_order_release);
 	}
 
+	T typed_dequeue(std::size_t current_head) {
+		return queue[current_head % N];
+	}
+
 public:
 	template<typename... Args>
 	bool enqueue(Args&&... args) {
@@ -41,7 +45,7 @@ public:
 		if (current_head == current_tail) {
 			return std::nullopt;
 		}
-		T value = queue[current_head % N];
+		T value = static_cast<Derived*>(this)->typed_dequeue(current_head);
 		head.store((current_head + 1), std::memory_order_release);
 		return value;
 	}
