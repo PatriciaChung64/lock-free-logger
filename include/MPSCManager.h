@@ -58,7 +58,7 @@ class MPSCManager {
             }
         }
 
-        void drain_queue(SPSCQueue<LogEntry, 10>& queue, 
+        void drain_queue(LogEntryQueue<10>& queue, 
             std::atomic<size_t>& totalEnqueued, 
             std::atomic<size_t>& totalDequeued) 
         {

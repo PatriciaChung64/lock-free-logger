@@ -5,7 +5,7 @@
 #include <array>
 #include <thread>
 
-#include "SPSCQueue.h"
+#include "LogEntryQueue.h"
 #include "LogEntry.h"
 
 inline int IDCounter = 0;
@@ -20,7 +20,7 @@ int getID() {
 struct WorkerThread
 {
     // producer hot zone
-    alignas(std::hardware_destructive_interference_size) SPSCQueue<LogEntry, 10> queue;
+    alignas(std::hardware_destructive_interference_size) LogEntryQueue<10> queue;
     std::atomic<size_t> totalEnqueued{0};
     std::atomic<size_t> droppedByProducer{0};
     const int threadID = getID();
@@ -45,7 +45,7 @@ struct WorkerThread
             }
             else if (current_state == State::Running) {
                 if (!target || totalEnqueued.load(std::memory_order_relaxed) < *target) {
-                    if (queue.enqueue(LogEntry{threadID, i})) {
+                    if (queue.enqueue(threadID, i)) {
                         totalEnqueued.fetch_add(1, std::memory_order_relaxed);
                         i++;
                     }
