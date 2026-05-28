@@ -11,6 +11,9 @@
 *.vcxproj.filters
 *.vcxproj.user
 
+# Log file
+*.csv
+
 # Build directories
 build/
 out/

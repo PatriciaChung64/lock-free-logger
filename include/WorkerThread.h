@@ -7,9 +7,9 @@
 
 #include "LogEntryQueue.h"
 #include "LogEntry.h"
+#include "State.h"
 
 inline int IDCounter = 0;
-enum class State { Idle, Running, Stopped };
 
 int getID() {
     int currentID = IDCounter;

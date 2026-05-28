@@ -253,18 +253,18 @@ Introducing state logic requires extending the currently stateless SPSCQueue wit
 
 
 ## Building
-Requires C++ 17 or later.
+Requires C++ 20 or later.
 ### SPSCTest
 #### Windows (Developer Powershell)
-`cl /std:c++17 /EHsc SPSCTest.cpp /I include`
+`cl /std:c++20 /EHsc SPSCTest.cpp /I include`
 #### Linux/Mac
-`g++ -std=c++17 -o spsc_test SPSCTest.cpp -I include`
+`g++ -std=c++20 -o spsc_test SPSCTest.cpp -I include`
 
 ### MPSCTest
 #### Windows (Developer Powershell)
-`cl /std:c++17 /EHsc MPSCTest.cpp /I include`
+`cl /std:c++20 /EHsc MPSCTest.cpp /I include`
 #### Linux/Mac
-`g++ -std=c++17 -o mpsc_test MPSCTest.cpp -I include`
+`g++ -std=c++20 -o mpsc_test MPSCTest.cpp -I include`
 
 ## Repository Structure
 ```
