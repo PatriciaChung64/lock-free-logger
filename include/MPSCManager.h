@@ -22,14 +22,14 @@ class MPSCManager {
         size_t droppedByManager;
 
     public:
-        MPSCManager(std::optional<int> target) : manager_queue{}, head(0), tail(0), threads(make_workers(target, std::make_index_sequence<N>{})) {}
+        MPSCManager(std::optional<int> target) : manager_queue{}, head(0), tail(0), droppedByManager(0), threads(make_workers(target, std::make_index_sequence<N>{})) {}
 
         const std::array<WorkerThread, N>& get_threads() const {
             return threads;
         }
 
         bool enqueue(LogEntry& val) {
-            if ((tail+1) % M == head) {
+            if ((tail+1) % M == head % M) {
                 return false;
             }
             manager_queue[tail%M] = val;
