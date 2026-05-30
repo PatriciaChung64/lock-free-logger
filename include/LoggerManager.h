@@ -18,7 +18,25 @@ public:
         return threads;
     }
 
-    bool enqueue() {
+    bool enqueue(uint64_t timestamp, int threadID, const char *message) {
+        if ((tail+1) % M == head % M) {
+            droppedByManager++;
+            return false;
+        }
+
+        size_t current_idx = tail % M;
+        manager_queue[current_idx].state = LogState::Writing;
+
+        manager_queue[current_idx].timestamp = timestamp;
+        manager_queue[current_idx].threadID = threadID;
+        snprintf(manager_queue[current_idx].message, LogEntry::MESSAGE_SIZE, "%s", message);
+
+        manager_queue[current_idx].state = LogState::Written;
+        tail++;
+        return true;
+    }
+
+    void distribute_work() {
         
     }
 };
